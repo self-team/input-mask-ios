@@ -57,7 +57,7 @@ class ValueState: State {
     }
     
     func accepts(character char: Character) -> Bool {
-        return self.type.characterSet.isMember(character: char) || char == "_"
+        return self.type.characterSet.isMember(character: char)
     }
     
     override func accept(character char: Character) -> Next? {
