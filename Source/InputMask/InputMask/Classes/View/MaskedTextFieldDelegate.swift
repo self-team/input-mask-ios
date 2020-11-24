@@ -68,8 +68,25 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         return try! maskGetOrCreate(withFormat: primaryMaskFormat, customNotations: customNotations)
     }
     
-    open var editingMask: String?
+    open var editingMaskSample: String?
     var caretPositionInt = 0
+    
+    var editingMask: String? {
+        guard let editingMaskSample = editingMaskSample else { return nil }
+        var myState = primaryMask.initialState
+        var editingMaskStr = ""
+        while !(myState is EOLState) {
+            if myState is ValueState {
+                editingMaskStr += editingMaskSample
+            } else if let fixed = myState as? FixedState {
+                editingMaskStr += String(fixed.ownCharacter)
+            } else if let free = myState as? FreeState {
+                editingMaskStr += String(free.ownCharacter)
+            }
+            myState = myState.child!
+        }
+        return editingMaskStr
+    }
     
     public init(
         primaryFormat: String = "",
@@ -197,26 +214,13 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
     
     open func textFieldDidBeginEditing(_ textField: UITextField) {
         if autocompleteOnFocus && (textField.text ?? "").isEmpty {
-            
             if let editingMask = editingMask {
-                let result: Mask.Result = put(text: editingMask, into: textField)
-                textField.cursorPosition = 0
-                notifyOnMaskedTextChangedListeners(forTextField: textField, result: result)
-
+                textField.text = editingMask
             } else {
                 let result: Mask.Result = put(text: "", into: textField, autocomplete: true)
                 notifyOnMaskedTextChangedListeners(forTextField: textField, result: result)
             }
         }
-        
-        if let editingMask = editingMask {
-            if textField.text == editingMask {
-                textField.cursorPosition = 0
-            } else {
-                textField.cursorPosition = caretPositionInt
-            }
-        }
-        
         listener?.textFieldDidBeginEditing?(textField)
     }
     
@@ -264,8 +268,13 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         
         let mask: Mask = pickMask(forText: text)
         let result: Mask.Result = mask.apply(toText: text)
-        
-        textField.text = result.formattedText.string
+        var resultText = result.formattedText.string
+        if let editingMask = editingMask {
+            let start = editingMask.startIndex;
+            let end = editingMask.index(editingMask.startIndex, offsetBy: resultText.count);
+            resultText = editingMask.replacingCharacters(in: start..<end, with: resultText)
+        }
+        textField.text = resultText
         
         if self.atomicCursorMovement {
             textField.cursorPosition = result.formattedText.string.distanceFromStartIndex(

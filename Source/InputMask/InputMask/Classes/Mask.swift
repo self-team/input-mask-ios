@@ -67,7 +67,7 @@ public class Mask: CustomDebugStringConvertible, CustomStringConvertible {
         }
     }
     
-    private let initialState: State
+    public let initialState: State
     private static var cache: [String: Mask] = [:]
     
     /**
@@ -203,7 +203,7 @@ public class Mask: CustomDebugStringConvertible, CustomStringConvertible {
             ),
             extractedValue: extractedValue,
             affinity: affinity,
-            complete: self.noMandatoryCharactersLeftAfterState(state) && !modifiedString.contains("_")
+            complete: self.noMandatoryCharactersLeftAfterState(state)
         )
     }
     
