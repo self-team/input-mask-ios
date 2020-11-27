@@ -68,6 +68,26 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         return try! maskGetOrCreate(withFormat: primaryMaskFormat, customNotations: customNotations)
     }
     
+    open var editMaskLiteral: String?
+    var caretPositionInt = 0
+    
+    var editingMask: String? {
+        guard let editMaskLiteral = editMaskLiteral else { return nil }
+        var myState = primaryMask.initialState
+        var editingMaskStr = ""
+        while !(myState is EOLState) {
+            if myState is ValueState {
+                editingMaskStr += editMaskLiteral
+            } else if let fixed = myState as? FixedState {
+                editingMaskStr += String(fixed.ownCharacter)
+            } else if let free = myState as? FreeState {
+                editingMaskStr += String(free.ownCharacter)
+            }
+            myState = myState.child!
+        }
+        return editingMaskStr
+    }
+    
     public init(
         primaryFormat: String = "",
         autocomplete: Bool = true,
@@ -194,8 +214,12 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
     
     open func textFieldDidBeginEditing(_ textField: UITextField) {
         if autocompleteOnFocus && (textField.text ?? "").isEmpty {
-            let result: Mask.Result = put(text: "", into: textField, autocomplete: true)
-            notifyOnMaskedTextChangedListeners(forTextField: textField, result: result)
+            if let editingMask = editingMask {
+                textField.text = editingMask
+            } else {
+                let result: Mask.Result = put(text: "", into: textField, autocomplete: true)
+                notifyOnMaskedTextChangedListeners(forTextField: textField, result: result)
+            }
         }
         listener?.textFieldDidBeginEditing?(textField)
     }
@@ -228,15 +252,29 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         let caretGravity: CaretString.CaretGravity =
             isDeletion ? .backward(autoskip: useAutoskip) : .forward(autocomplete: useAutocomplete)
         
-        let updatedText: String = replaceCharacters(inText: textField.text ?? "", range: range, withCharacters: string)
-        let caretPositionInt: Int = isDeletion ? range.location : range.location + string.count
+        var updatedText: String = replaceCharacters(inText: textField.text ?? "", range: range, withCharacters: string)
+        
+        if isDeletion {
+            if let editingMask = editingMask {
+                let start = editingMask.startIndex;
+                let end = editingMask.index(editingMask.startIndex, offsetBy: updatedText.count);
+                updatedText = editingMask.replacingCharacters(in: start..<end, with: updatedText)
+            }
+        }
+
+        caretPositionInt = isDeletion ? range.location : range.location + string.count
         let caretPosition: String.Index = updatedText.startIndex(offsetBy: caretPositionInt)
         let text = CaretString(string: updatedText, caretPosition: caretPosition, caretGravity: caretGravity)
         
         let mask: Mask = pickMask(forText: text)
         let result: Mask.Result = mask.apply(toText: text)
-        
-        textField.text = result.formattedText.string
+        var resultText = result.formattedText.string
+        if let editingMask = editingMask {
+            let start = editingMask.startIndex;
+            let end = editingMask.index(editingMask.startIndex, offsetBy: resultText.count);
+            resultText = editingMask.replacingCharacters(in: start..<end, with: resultText)
+        }
+        textField.text = resultText
         
         if self.atomicCursorMovement {
             textField.cursorPosition = result.formattedText.string.distanceFromStartIndex(

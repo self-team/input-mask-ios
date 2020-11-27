@@ -13,7 +13,7 @@ import Foundation
  State of the mask, similar to the state in regular expressions.
  Each state represents a character from the mask format string.
  */
-class State: CustomDebugStringConvertible, CustomStringConvertible {
+public class State: CustomDebugStringConvertible, CustomStringConvertible {
     
     /**
      Next ```State```.
@@ -70,11 +70,11 @@ class State: CustomDebugStringConvertible, CustomStringConvertible {
         self.child = child
     }
     
-    var debugDescription: String {
+    public var debugDescription: String {
         return "BASE -> " + (nil != self.child ? self.child!.debugDescription : "nil")
     }
     
-    var description: String {
+    public var description: String {
         return self.debugDescription
     }
     
