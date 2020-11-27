@@ -68,16 +68,16 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         return try! maskGetOrCreate(withFormat: primaryMaskFormat, customNotations: customNotations)
     }
     
-    open var editingMaskSample: String?
+    open var editMaskLiteral: String?
     var caretPositionInt = 0
     
     var editingMask: String? {
-        guard let editingMaskSample = editingMaskSample else { return nil }
+        guard let editMaskLiteral = editMaskLiteral else { return nil }
         var myState = primaryMask.initialState
         var editingMaskStr = ""
         while !(myState is EOLState) {
             if myState is ValueState {
-                editingMaskStr += editingMaskSample
+                editingMaskStr += editMaskLiteral
             } else if let fixed = myState as? FixedState {
                 editingMaskStr += String(fixed.ownCharacter)
             } else if let free = myState as? FreeState {
