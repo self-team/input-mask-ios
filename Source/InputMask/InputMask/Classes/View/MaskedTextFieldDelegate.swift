@@ -214,11 +214,12 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
     
     open func textFieldDidBeginEditing(_ textField: UITextField) {
         if autocompleteOnFocus && (textField.text ?? "").isEmpty {
+            let result: Mask.Result = put(text: "", into: textField, autocomplete: true)
+            notifyOnMaskedTextChangedListeners(forTextField: textField, result: result)
             if let editingMask = editingMask {
+                let savedCursorPosition = textField.cursorPosition
                 textField.text = editingMask
-            } else {
-                let result: Mask.Result = put(text: "", into: textField, autocomplete: true)
-                notifyOnMaskedTextChangedListeners(forTextField: textField, result: result)
+                textField.cursorPosition = savedCursorPosition
             }
         }
         listener?.textFieldDidBeginEditing?(textField)
