@@ -77,6 +77,7 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         var editingMaskStr = ""
         while !(myState is EOLState) {
             if myState is ValueState {
+                guard let valueState = myState as? ValueState, !valueState.isElliptical else { return nil }
                 editingMaskStr += editMaskLiteral
             } else if let fixed = myState as? FixedState {
                 editingMaskStr += String(fixed.ownCharacter)
