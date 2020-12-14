@@ -70,8 +70,10 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
     
     open var editMaskLiteral: String?
     var caretPositionInt = 0
+    var textColor = UIColor(red: 0.133, green: 0.133, blue: 0.133, alpha: 1)
+    var editMaskTextColor = UIColor(red: 0.71, green: 0.71, blue: 0.72, alpha: 1)
     
-    var editingMask: String? {
+    var editingMask: NSMutableAttributedString? {
         guard let editMaskLiteral = editMaskLiteral else { return nil }
         var myState = primaryMask.initialState
         var editingMaskStr = ""
@@ -86,7 +88,11 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
             }
             myState = myState.child!
         }
-        return editingMaskStr
+        
+        let attributed = NSMutableAttributedString(string: editingMaskStr)
+        attributed.addAttribute(.foregroundColor, value: editMaskTextColor, range: NSRange(location: 0, length: editingMaskStr.count))
+        
+        return attributed
     }
     
     public init(
@@ -219,9 +225,11 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
             notifyOnMaskedTextChangedListeners(forTextField: textField, result: result)
             if let editingMask = editingMask {
                 let savedCursorPosition = textField.cursorPosition
-                textField.text = editingMask
+                textField.attributedText = editingMask
                 textField.cursorPosition = savedCursorPosition
             }
+        } else {
+            textField.cursorPosition = caretPositionInt
         }
         listener?.textFieldDidBeginEditing?(textField)
     }
@@ -254,15 +262,7 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         let caretGravity: CaretString.CaretGravity =
             isDeletion ? .backward(autoskip: useAutoskip) : .forward(autocomplete: useAutocomplete)
         
-        var updatedText: String = replaceCharacters(inText: textField.text ?? "", range: range, withCharacters: string)
-        
-        if isDeletion {
-            if let editingMask = editingMask {
-                let start = editingMask.startIndex;
-                let end = editingMask.index(editingMask.startIndex, offsetBy: updatedText.count);
-                updatedText = editingMask.replacingCharacters(in: start..<end, with: updatedText)
-            }
-        }
+        let updatedText: String = replaceCharacters(inText: textField.text ?? "", range: range, withCharacters: string)
 
         caretPositionInt = isDeletion ? range.location : range.location + string.count
         let caretPosition: String.Index = updatedText.startIndex(offsetBy: caretPositionInt)
@@ -271,12 +271,19 @@ open class MaskedTextFieldDelegate: NSObject, UITextFieldDelegate {
         let mask: Mask = pickMask(forText: text)
         let result: Mask.Result = mask.apply(toText: text)
         var resultText = result.formattedText.string
-        if let editingMask = editingMask {
+        if let editingMask = editingMask?.string {
+            let textCount = resultText.count
             let start = editingMask.startIndex;
-            let end = editingMask.index(editingMask.startIndex, offsetBy: resultText.count);
+            let end = editingMask.index(editingMask.startIndex, offsetBy: textCount);
             resultText = editingMask.replacingCharacters(in: start..<end, with: resultText)
+            
+            let attributed = NSMutableAttributedString(string: resultText)
+            attributed.addAttribute(.foregroundColor, value: textColor, range: NSRange(location: 0, length: textCount))
+            attributed.addAttribute(.foregroundColor, value: editMaskTextColor, range: NSRange(location: textCount, length: resultText.count - textCount))
+            textField.attributedText = attributed
+        } else {
+            textField.text = resultText
         }
-        textField.text = resultText
         
         if self.atomicCursorMovement {
             textField.cursorPosition = result.formattedText.string.distanceFromStartIndex(
